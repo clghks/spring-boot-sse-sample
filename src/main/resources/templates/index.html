@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Notification Test Page</title>
+</head>
+<body>
+    <div>
+        <h1>로그인</h1>
+        <input type="text" id="id"/>
+        <button type="button" onclick="login()">로그인</button>
+    </div>
+
+    <div>
+        <h1>알림 전송</h1>
+        <input type="text" id="title" value="알림" />
+        <input type="text" id="message" value="알림 메세지 입니다." />
+        <input type="text" id="url" value="https://www.naver.com/" />
+        <button type="button" onclick="sendNotification()">알림 전송</button>
+    </div>
+</body>
+</html>
+
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script type="text/javaScript">
+    function sendNotification() {
+        axios({
+            method: 'POST',
+            url: '/notification/' + document.getElementById('id').value,
+            data: {
+                title: document.getElementById('title').value,
+                message: document.getElementById('message').value,
+                url: document.getElementById('url').value
+            }
+        });
+    }
+
+    function login() {
+        const id = document.getElementById('id').value;
+        const eventSource = new EventSource(`/subscribe/` + id);
+
+        eventSource.addEventListener("sse", function (event) {
+            console.log(event.data);
+            const data = JSON.parse(event.data);
+            (async () => {
+                // 브라우저 알림
+                const showNotification = () => {
+                    const notification = new Notification(data.title, {
+                        body: data.message
+                    });
+
+                    setTimeout(() => {
+                        notification.close();
+                    }, 10 * 1000);
+
+                    notification.addEventListener('click', () => {
+                        window.open(data.url, '_blank');
+                    });
+                }
+
+                // 브라우저 알림 허용 권한
+                let granted = false;
+
+                if (Notification.permission === 'granted') {
+                    granted = true;
+                } else if (Notification.permission !== 'denied') {
+                    let permission = await Notification.requestPermission();
+                    granted = permission === 'granted';
+                }
+
+                // 알림 보여주기
+                if (granted) {
+                    showNotification();
+                }
+            })();
+        })
+    }
+</script>
